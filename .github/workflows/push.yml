@@ -5,6 +5,18 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags')
     steps:
+      - name: Create .ENV
+        run: |
+          touch .env
+          echo HOST_DATA="https://xxx.execute-api.us-west-2.amazonaws.com" >> .env
+          echo MONGODB_PASSWORD=${{ secrets.MONGODB_PASSWORD }} >> .env
+          echo VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }} >> .env
+          echo VK_CLIENT_SECRET=${{ secrets.VK_CLIENT_SECRET }} >> .env
+          echo GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} >> .env
+          echo GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} >> .env
+          echo SALT=${{ secrets.SALT }} >> .env
+          echo SIGNING_KEY=${{ secrets.SIGNING_KEY }} >> .env
+          cat .env
       - uses: actions/checkout@v2
       - name: Build the stack
         run: docker-compose up -d
@@ -26,18 +38,6 @@ jobs:
   #       run: |
   #         echo ${{steps.version_step.outputs.version_tag}}
   #         echo ${{steps.version_step.outputs.latest_tag}}
-  #     - name: Create .ENV
-  #       run: |
-  #         touch .env
-  #         echo HOST_DATA="https://xxx.execute-api.us-west-2.amazonaws.com" >> .env
-  #         echo MONGODB_PASSWORD=${{ secrets.MONGODB_PASSWORD }} >> .env
-  #         echo VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }} >> .env
-  #         echo VK_CLIENT_SECRET=${{ secrets.VK_CLIENT_SECRET }} >> .env
-  #         echo GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} >> .env
-  #         echo GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} >> .env
-  #         echo SALT=${{ secrets.SALT }} >> .env
-  #         echo SIGNING_KEY=${{ secrets.SIGNING_KEY }} >> .env
-  #         cat .env
   #     - name: Set up QEMU
   #       uses: docker/setup-qemu-action@v1
 
