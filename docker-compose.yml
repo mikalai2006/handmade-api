@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  # postgres-db:
+  #   build: ./postgres-db
+  #   container_name: postgres-db
+  #   environment:
+  #     - POSTGRES_PASSWORD=${PG_PASSWORD}
+  #   volumes:
+  #     - ${HOST_DATA}/postgres:/data/handmade
+  #   ports:
+  #     - ${PG_PORT}:${PG_PORT}
+  #   restart: always
+  #   networks:
+  #     - my-network
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - AUTH=yes
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+    volumes:
+      - ${HOST_DATA}/mongodata:/data/db
+    ports:
+      - ${MONGODB_PORT}:${MONGODB_PORT}
+    restart: always
+    # networks:
+    #   - my-network
+
+  app:
+    image: cosmtrek/air
+    # working_dir value has to be the same of mapped volume
+    # working_dir: /app
+    build:
+      dockerfile: Dockerfile.dev
+      context: .
+      target: dev
+    ports:
+      - ${PORT}:${PORT}
+    volumes:
+      - ./:/app
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+    # restart: always
+    # container_name: app
+    env_file:
+      - .env
+    # environment:
+    #   - PORT=
+    #   - MONGO_HOST=
+    #   - MONGO_USER=
+    #   - MONGO_PASSWORD=
+    #   - MONGO_PORT=
+    #   - MONGO_DATABASE=
+# networks:
+#   my-network:
+# volumes:
+#   my-datavolume:

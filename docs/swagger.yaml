@@ -1,0 +1,178 @@
+basePath: /
+definitions:
+  domain.Auth:
+    properties:
+      id:
+        description: swagger:ignore
+        type: string
+      login:
+        type: string
+      password:
+        type: string
+      session:
+        $ref: '#/definitions/domain.Session'
+      verification:
+        $ref: '#/definitions/domain.Verification'
+    required:
+    - login
+    - password
+    type: object
+  domain.Session:
+    properties:
+      expiresAt:
+        type: string
+      refreshToken:
+        type: string
+    type: object
+  domain.Shop:
+    properties:
+      description:
+        type: string
+      seo:
+        type: string
+      title:
+        description: Id          int    `json:"id" bson:"_id"`
+        type: string
+      user_id:
+        type: string
+    required:
+    - title
+    type: object
+  domain.Verification:
+    properties:
+      code:
+        type: string
+      verified:
+        type: boolean
+    type: object
+  handler.errorResponse:
+    properties:
+      message:
+        type: string
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: API Server for Handmade App
+  title: Handmade API
+  version: "1.0"
+paths:
+  /api/shops:
+    get:
+      consumes:
+      - application/json
+      description: get all shops
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Shop'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Shop Get all shops
+      tags:
+      - shop
+  /auth/sign-in:
+    post:
+      consumes:
+      - application/json
+      description: Login user
+      operationId: signin-account
+      parameters:
+      - description: credentials
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Auth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: SignIn
+      tags:
+      - auth
+  /auth/sign-up:
+    post:
+      consumes:
+      - application/json
+      description: Create account
+      operationId: create-account
+      parameters:
+      - description: account info
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Auth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: SignUp
+      tags:
+      - auth
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

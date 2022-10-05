@@ -1,0 +1,7 @@
+.env
+/postgres-db
+/migrations
+/migrator
+/help
+/tmp
+/gin-bin
