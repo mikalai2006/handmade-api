@@ -12,6 +12,7 @@ jobs:
           echo HOST_DATA=${{ secrets.HOST_DATA }} >> .env
           echo MONGODB_HOST=${{ secrets.MONGODB_HOST }} >> .env
           echo MONGODB_PORT=${{ secrets.MONGODB_PORT }} >> .env
+          echo PORT=${{ secrets.PORT }} >> .env
           echo MONGODB_USER=${{ secrets.MONGODB_USER }} >> .env
           echo MONGODB_PASSWORD=${{ secrets.MONGODB_PASSWORD }} >> .env
           echo VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }} >> .env
