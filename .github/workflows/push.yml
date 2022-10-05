@@ -8,7 +8,10 @@ jobs:
       - name: Create .ENV
         run: |
           touch .env
-          echo HOST_DATA="https://xxx.execute-api.us-west-2.amazonaws.com" >> .env
+          echo HOST_DATA=${{ secrets.HOST_DATA }} >> .env
+          echo MONGODB_HOST=${{ secrets.MONGODB_HOST }} >> .env
+          echo MONGODB_PORT=${{ secrets.MONGODB_PORT }} >> .env
+          echo MONGODB_USER=${{ secrets.MONGODB_USER }} >> .env
           echo MONGODB_PASSWORD=${{ secrets.MONGODB_PASSWORD }} >> .env
           echo VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }} >> .env
           echo VK_CLIENT_SECRET=${{ secrets.VK_CLIENT_SECRET }} >> .env
