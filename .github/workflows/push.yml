@@ -62,11 +62,11 @@ jobs:
         with:
           images: mikalai2006/handmade-api
 
-      # - name: PrepareReg Names
-      #   id: read-docker-image-identifiers
-      #   run: |
-      #     echo VERSION_TAG=$(echo ${{ steps.version_step.outputs.version_tag }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
-      #     echo LASTEST_TAG=$(echo ${{ steps.version_step.outputs.latest_tag  }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+      - name: PrepareReg Names
+        id: read-docker-image-identifiers
+        run: |
+          echo VERSION_TAG=$(echo ${{ steps.version_step.outputs.version_tag }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+          echo LASTEST_TAG=$(echo ${{ steps.version_step.outputs.latest_tag  }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
       - name: Build and push Docker image
         id: docker_build
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
