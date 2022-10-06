@@ -32,6 +32,7 @@ services:
 
   app:
     image: cosmtrek/air
+    container_name: handmade-api
     # working_dir value has to be the same of mapped volume
     # working_dir: /app
     build:
