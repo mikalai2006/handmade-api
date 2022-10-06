@@ -1,4 +1,7 @@
 FROM golang:1.19.1-alpine AS builder
+LABEL org.opencontainers.image.source=https://github.com/mikalai2006/handmade-api
+LABEL org.opencontainers.image.description="API for handmade service"
+LABEL org.opencontainers.image.licenses=MIT
 ARG VERSION=dev
 
 ENV APP_HOME /go/src/handmade
