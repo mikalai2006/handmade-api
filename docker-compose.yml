@@ -36,9 +36,9 @@ services:
     # working_dir value has to be the same of mapped volume
     # working_dir: /app
     build:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       context: .
-      target: dev
+      # target: dev
     ports:
       - ${PORT}:${PORT}
     volumes:
