@@ -47,9 +47,9 @@ func TestMongo(t *testing.T) {
 
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
 	require.NoError(t, err)
-	defer client.Disconnect(ctx)
-
-	// db := client.Database(dbName)
-
-	// t.Run("Insertexample")
+	defer func() {
+		if err := client.Disconnect(ctx); err != nil {
+			fmt.Printf("Error when closing connect: %s", err.Error())
+		}
+	}()
 }

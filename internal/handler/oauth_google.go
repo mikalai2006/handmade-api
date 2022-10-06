@@ -70,8 +70,14 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 		AccessToken string `json:"access_token"`
 	}{}
 
-	bytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(bytes, &token)
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := json.Unmarshal(bytes, &token); err != nil { // Parse []byte to go struct pointer
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+	}
 
 	UrlInfo, err := url.Parse(GOOGLE_USER_INFO_URI)
 	if err != nil {

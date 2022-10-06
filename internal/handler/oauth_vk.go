@@ -53,8 +53,14 @@ func (h *Handler) Me(c *gin.Context) {
 		AccessToken string `json:"access_token"`
 	}{}
 
-	bytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(bytes, &token)
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := json.Unmarshal(bytes, &token); err != nil { // Parse []byte to go struct pointer
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+	}
 
 	urlR = fmt.Sprintf("https://api.vk.com/method/%s?v=5.131&access_token=%s", "users.get", token.AccessToken)
 	req, err = http.NewRequest("GET", urlR, nil)
