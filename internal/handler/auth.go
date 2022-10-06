@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -110,7 +111,7 @@ func (h *Handler) OAuthGoogle(c *gin.Context) {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
 	parameters := url.Values{}
-	parameters.Add("client_id", GOOGLE_CLIENT_ID)
+	parameters.Add("client_id", os.Getenv("GOOGLE_CLIENT_ID"))
 	parameters.Add("redirect_uri", GOOGLE_REDIRECT_URI)
 	parameters.Add("scope", googleScope)
 	parameters.Add("response_type", "code")
@@ -129,7 +130,7 @@ func (h *Handler) OAuthVK(c *gin.Context)  {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
 	parameters := url.Values{}
-	parameters.Add("client_id", clientID)
+	parameters.Add("client_id", os.Getenv("VK_CLIENT_ID"))
 	parameters.Add("redirect_uri", redirectURI)
 	parameters.Add("scope", scopeTemp)
 	parameters.Add("response_type", "code")

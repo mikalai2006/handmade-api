@@ -19,8 +19,8 @@ var (
 	GOOGLE_AUTH_URI      = "https://accounts.google.com/o/oauth2/auth"                                                                    // Посилання на аутентифікацію
 	GOOGLE_TOKEN_URI     = "https://accounts.google.com/o/oauth2/token"                                                                   // Посилання на отримання токена
 	GOOGLE_USER_INFO_URI = "https://www.googleapis.com/oauth2/v3/userinfo"                                                                // Посилання на отримання інформації про користувача
-	GOOGLE_CLIENT_ID     = os.Getenv("GOOGLE_CLIENT_ID")
-	GOOGLE_CLIENT_SECRET = os.Getenv("GOOGLE_CLIENT_SECRET")
+	// GOOGLE_CLIENT_ID     = os.Getenv("GOOGLE_CLIENT_ID")
+	// GOOGLE_CLIENT_SECRET = os.Getenv("GOOGLE_CLIENT_SECRET")
 	GOOGLE_REDIRECT_URI  = "http://localhost:8000/googleme"
 )
 
@@ -51,9 +51,9 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 		panic("boom")
 	}
 	parameters := url.Values{}
-	parameters.Set("client_id", GOOGLE_CLIENT_ID)
+	parameters.Set("client_id", os.Getenv("GOOGLE_CLIENT_ID"))
 	parameters.Set("redirect_uri", GOOGLE_REDIRECT_URI)
-	parameters.Set("client_secret", GOOGLE_CLIENT_SECRET)
+	parameters.Set("client_secret", os.Getenv("GOOGLE_CLIENT_SECRET"))
 	parameters.Set("code", code)
 	parameters.Set("grant_type", "authorization_code")
 

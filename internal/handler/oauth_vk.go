@@ -15,8 +15,8 @@ import (
 
 var (
 	vk_auth_path = "https://oauth.vk.com/authorize"
-	clientID     = os.Getenv("VK_CLIENT_ID")
-	clientSecret = os.Getenv("VK_CLIENT_SECRET")
+	// clientID     = os.Getenv("VK_CLIENT_ID")
+	// clientSecret = os.Getenv("VK_CLIENT_SECRET")
 	redirectURI  = "http://localhost:8000/me"
 	scope        = []string{"account"}
 )
@@ -40,7 +40,7 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 
 	urlR := fmt.Sprintf("https://oauth.vk.com/access_token?client_id=%s&client_secret=%s&redirect_uri=%s&code=%s",
-		clientID, clientSecret, redirectURI, code)
+	os.Getenv("VK_CLIENT_ID"), os.Getenv("VK_CLIENT_SECRET"), redirectURI, code)
 	req, _ := http.NewRequest("POST", urlR, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
