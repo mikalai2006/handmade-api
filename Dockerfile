@@ -1,17 +1,17 @@
 FROM golang:1.19.1-alpine AS builder
-LABEL org.opencontainers.image.source=https://github.com/mikalai2006/handmade-api
-LABEL org.opencontainers.image.description="API for handmade service"
-LABEL org.opencontainers.image.licenses=MIT
 ARG VERSION=dev
 
 ENV APP_HOME /go/src/handmade
-
 WORKDIR "$APP_HOME"
+
 COPY . .
 COPY ./.env .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main -ldflags=-X=main.version=${VERSION} cmd/main.go
+RUN go build -o main -ldflags=-X=main.version=${VERSION} cmd/main.go
 
-FROM debian:buster-slim
+FROM alpine:3.14
+LABEL org.opencontainers.image.source=https://github.com/mikalai2006/handmade-api
+LABEL org.opencontainers.image.description="API for handmade service"
+LABEL org.opencontainers.image.licenses=MIT
 
 ENV APP_HOME /go/src/handmade
 RUN mkdir -p "$APP_HOME"
