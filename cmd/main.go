@@ -85,7 +85,7 @@ func main() {
 	handlers := handler.NewHandler(services, cfg.Oauth)
 
 	// initialize server
-	srv := server.NewServer(cfg, handlers.InitRoutes())
+	srv := server.NewServer(cfg, handlers.InitRoutes(*cfg))
 
 	go func ()  {
 		if err := srv.Run(); !errors.Is(err, http.ErrServerClosed) {

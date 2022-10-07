@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
+	"github.com/mikalai2006/handmade/docs"
 	"github.com/mikalai2006/handmade/internal/config"
 	"github.com/mikalai2006/handmade/internal/service"
 	swaggerFiles "github.com/swaggo/files"     // swagger embed files
@@ -22,11 +25,21 @@ func NewHandler(services *service.Services, oauth config.OauthConfig) *Handler  
 	}
 }
 
-func (h *Handler) InitRoutes() *gin.Engine {
-	router := gin.New()
+func (h *Handler) InitRoutes(cfg config.Config) *gin.Engine {
+	router := gin.Default()
+	router.Use(
+		gin.Recovery(),
+		gin.Logger(),
+		middlewareCors,
+	)
 	// add swagger route
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
+	docs.SwaggerInfo.Host = fmt.Sprintf("%s:%s", cfg.HTTP.Host, cfg.HTTP.Port)
+	if cfg.Environment != config.EnvLocal {
+		docs.SwaggerInfo.Host = cfg.HTTP.Host
+	}
+	if cfg.Environment != config.Prod {
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 	// store := cookie.NewStore([]byte(os.Getenv("secret")))
 	// router.Use(sessions.Sessions("mysession", store))
 
