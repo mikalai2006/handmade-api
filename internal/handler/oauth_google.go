@@ -6,23 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikalai2006/handmade/internal/domain"
-	"github.com/spf13/viper"
 )
 
-var (
-	GOOGLE_SCOPES        = []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"} // Права доступа
-	GOOGLE_AUTH_URI      = "https://accounts.google.com/o/oauth2/auth"                                                                    // Посилання на аутентифікацію
-	GOOGLE_TOKEN_URI     = "https://accounts.google.com/o/oauth2/token"                                                                   // Посилання на отримання токена
-	GOOGLE_USER_INFO_URI = "https://www.googleapis.com/oauth2/v3/userinfo"                                                                // Посилання на отримання інформації про користувача
-	// GOOGLE_CLIENT_ID     = os.Getenv("GOOGLE_CLIENT_ID")
-	// GOOGLE_CLIENT_SECRET = os.Getenv("GOOGLE_CLIENT_SECRET")
-	GOOGLE_REDIRECT_URI  = "http://localhost:8000/googleme"
-)
 
 type GoogleUserInfo struct {
 	Sub           string `json:"sub"`
@@ -46,14 +35,14 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 		return
 	}
 
-	Url, err := url.Parse(GOOGLE_TOKEN_URI)
+	Url, err := url.Parse(h.oauth.GoogleTokenUri)
 	if err != nil {
 		panic("boom")
 	}
 	parameters := url.Values{}
-	parameters.Set("client_id", os.Getenv("GOOGLE_CLIENT_ID"))
-	parameters.Set("redirect_uri", GOOGLE_REDIRECT_URI)
-	parameters.Set("client_secret", os.Getenv("GOOGLE_CLIENT_SECRET"))
+	parameters.Set("client_id", h.oauth.GoogleClientId)
+	parameters.Set("redirect_uri", h.oauth.GoogleRedirectUri)
+	parameters.Set("client_secret", h.oauth.GoogleClientSecret)
 	parameters.Set("code", code)
 	parameters.Set("grant_type", "authorization_code")
 
@@ -79,7 +68,7 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
 
-	UrlInfo, err := url.Parse(GOOGLE_USER_INFO_URI)
+	UrlInfo, err := url.Parse(h.oauth.GoogleUserinfoUri)
 	if err != nil {
 		panic("boom")
 	}
@@ -105,7 +94,7 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
 
-	input := domain.Auth{
+	input := domain.SignInInput{
 		Login:    bodyResponse.Email,
 		Strategy: "jwt",
 		Password: "",
@@ -139,6 +128,6 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 	parameters = url.Values{}
 	parameters.Add("token", tokens.AccessToken)
 	Url.RawQuery = parameters.Encode()
-	c.SetCookie("jwt-handmade", tokens.RefreshToken, viper.GetInt("oauth.timeExpireCookie"), "/", c.Request.URL.Hostname(), false, true)
+	c.SetCookie("jwt-handmade", tokens.RefreshToken, h.oauth.TimeExpireCookie, "/", c.Request.URL.Hostname(), false, true)
 	c.Redirect(http.StatusFound, Url.String())
 }

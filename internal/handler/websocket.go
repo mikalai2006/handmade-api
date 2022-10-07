@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +14,6 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	
 }
 
 func (h *Handler) wsEndPoint(c *gin.Context) {
@@ -27,10 +28,10 @@ func (h *Handler) wsEndPoint(c *gin.Context) {
 	}
 	defer ws.Close()
 
-	reader(c, ws)
+	reader(h, c, ws)
 }
 
-func reader(c *gin.Context, ws *websocket.Conn) {
+func reader(h *Handler, c *gin.Context, ws *websocket.Conn) {
 	for {
 		//Read Message from client
 		mt, message, err := ws.ReadMessage()
@@ -38,10 +39,31 @@ func reader(c *gin.Context, ws *websocket.Conn) {
 			newErrorResponse(c, http.StatusInternalServerError, err.Error())
 			break
 		}
-		//If client message is ping will return pong
-		if string(message) == "ping" {
-			message = []byte("pong")
+
+
+		var m WsMessage
+		if err := json.Unmarshal([]byte(message), &m); err != nil {
+			newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		}
+
+		//If client message is ping will return pong
+		if m.Method == "find" {
+			response, err := h.services.Shop.GetAllShops()
+			if err != nil {
+				newErrorResponse(c, http.StatusInternalServerError, err.Error())
+			}
+			// response := []string{
+			// 	"pong",
+			// 	"pong",
+			// }
+			updateJson, err := json.Marshal(response)
+			if err != nil {
+				newErrorResponse(c, http.StatusInternalServerError, err.Error())
+			}
+			message = updateJson
+
+		}
+
 		//Response message to client
 		err = ws.WriteMessage(mt, message)
 		if err != nil {
@@ -49,4 +71,22 @@ func reader(c *gin.Context, ws *websocket.Conn) {
 			break
 		}
 	}
+}
+
+type WsMessage struct {
+	Service  string
+	Method string
+	Data any
+}
+
+func (n *WsMessage) UnmarshalJSON(buf []byte) error {
+	tmp := []interface{}{&n.Service, &n.Method, &n.Data}
+	wantLen := len(tmp)
+	if err := json.Unmarshal(buf, &tmp); err != nil {
+		return err
+	}
+	if g, e := len(tmp), wantLen; g != e {
+		return fmt.Errorf("wrong number of fields in Notification: %d != %d", g, e)
+	}
+	return nil
 }

@@ -22,23 +22,40 @@ func NewShopMongo(db *mongo.Database) *ShopMongo {
 }
 
 
-func (r *ShopMongo) GetAllShops() ([]*domain.Shop, error) {
-	var results []*domain.Shop
+func (r *ShopMongo) GetAllShops() (domain.Response, error) {
+	var results []domain.Shop
+	var response domain.Response
 
 	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)
 	defer cancel()
 
 	cursor, err := r.db.Collection(collectionName).Find(ctx, bson.M{})
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 	defer cursor.Close(ctx)
 
+	count,err := r.db.Collection(collectionName).CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return response, err
+	}
 
 	if err := cursor.All(ctx, &results); err != nil {
-		return nil, err
+		return response, err
 	}
-	return results, nil
+
+	var resultSlice []interface{} = make([]interface{}, len(results))
+	for i, d := range results {
+		resultSlice[i] = d
+	}
+
+	response = domain.Response{
+		Total: count,
+		Skip: 0,
+		Limit: 10,
+		Data: resultSlice,
+	}
+	return response, nil
 }
 
 func (r *ShopMongo) CreateShop(userId string, shop domain.Shop) (*domain.Shop, error) {

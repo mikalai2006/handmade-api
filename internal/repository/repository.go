@@ -7,35 +7,25 @@ import (
 )
 
 type Authorization interface {
-	CreateAuth(auth domain.Auth) (primitive.ObjectID, error)
+	CreateAuth(auth domain.SignInInput) (primitive.ObjectID, error)
 	GetAuth(auth domain.Auth) (domain.Auth, error)
-	CheckExistAuth(auth domain.Auth) (domain.Auth, error)
-	GetByCredentials(auth domain.Auth) (domain.Auth, error)
+	CheckExistAuth(auth domain.SignInInput) (domain.Auth, error)
+	GetByCredentials(auth domain.SignInInput) (domain.Auth, error)
 	SetSession(authId primitive.ObjectID, session domain.Session) error
 }
 
 type Shop interface {
-	GetAllShops() ([]*domain.Shop, error)
+	GetAllShops() (domain.Response, error)
 	CreateShop(userId string, shop domain.Shop) (*domain.Shop, error)
 }
 
-
-type TodoList interface {
-}
-
-type TodoItem interface {
-}
-
-
-type Repository struct {
+type Repositories struct {
 	Authorization
-	TodoList
-	TodoItem
 	Shop
 }
 
-func NewRepository(mongodb *mongo.Database) *Repository {
-	return &Repository{
+func NewRepositories(mongodb *mongo.Database) *Repositories {
+	return &Repositories{
 		Authorization: NewAuthMongo(mongodb),
 		Shop: NewShopMongo(mongodb),
 	}

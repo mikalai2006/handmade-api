@@ -20,3 +20,10 @@ type Verification struct {
 	Code     string `json:"code" bson:"code"`
 	Verified bool   `json:"verified" bson:"verified"`
 }
+type SignInInput struct {
+	Login string
+	Password string
+	Strategy string
+	VkId string `json:"-"`
+	GoogleId string `json:"-"`
+}

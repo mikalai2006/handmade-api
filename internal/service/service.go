@@ -1,44 +1,44 @@
 package service
 
 import (
+	"time"
+
 	"github.com/mikalai2006/handmade/internal/domain"
 	"github.com/mikalai2006/handmade/internal/repository"
+	"github.com/mikalai2006/handmade/pkg/auths"
+	"github.com/mikalai2006/handmade/pkg/hasher"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type Tokens struct {
-	AccessToken  string
-	RefreshToken string
-}
 
 type Authorization interface {
-	CreateAuth(auth domain.Auth) (primitive.ObjectID, error)
-	SignIn(auth domain.Auth) (Tokens, error)
-	ExistAuth(auth domain.Auth) (domain.Auth, error)
+	CreateAuth(auth domain.SignInInput) (primitive.ObjectID, error)
+	SignIn(input domain.SignInInput) (Tokens, error)
+	ExistAuth(auth domain.SignInInput) (domain.Auth, error)
 	CreateSession(auth domain.Auth) (Tokens, error)
 }
 
 type Shop interface {
-	GetAllShops() ([]*domain.Shop, error)
+	GetAllShops() (domain.Response, error)
 	CreateShop(userId string, shop domain.Shop) (*domain.Shop, error)
 }
 
-type TodoList interface {
-}
-
-type TodoItem interface {
-}
-
-type Service struct {
+type Services struct {
 	Authorization
-	TodoList
-	TodoItem
 	Shop
 }
 
-func NewService(repos *repository.Repository) *Service {
-	return &Service{
-		Authorization: NewAuthService(repos.Authorization),
-		Shop: NewShopService(repos.Shop),
+type ConfigServices struct {
+	Repositories *repository.Repositories
+	Hasher hasher.PasswordHasher
+	TokenManager auths.TokenManager
+	AccessTokenTTL time.Duration
+	RefreshTokenTTL time.Duration
+}
+
+func NewServices(cfgService *ConfigServices) *Services {
+	return &Services{
+		Authorization: NewAuthService(cfgService.Repositories.Authorization, cfgService.Hasher, cfgService.TokenManager, cfgService.RefreshTokenTTL, cfgService.AccessTokenTTL),
+		Shop: NewShopService(cfgService.Repositories.Shop),
 	}
 }

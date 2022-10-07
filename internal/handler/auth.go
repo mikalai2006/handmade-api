@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +23,7 @@ import (
 // @Failure default {object} errorResponse
 // @Router /auth/sign-up [post]
 func (h *Handler) SignUp(c *gin.Context) {
-	var input  domain.Auth
+	var input  domain.SignInInput
 
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -42,13 +41,15 @@ func (h *Handler) SignUp(c *gin.Context) {
 	})
 }
 
+
+
 // @Summary SignIn
 // @Tags auth
 // @Description Login user
 // @ID signin-account
 // @Accept json
 // @Produce json
-// @Param input body domain.Auth true "credentials"
+// @Param input body domain.SignInInput true "credentials"
 // @Success 200 {integer} 1
 // @Failure 400,404 {object} errorResponse
 // @Failure 500 {object} errorResponse
@@ -60,7 +61,7 @@ func (h *Handler) SignIn(c *gin.Context) {
 	// fmt.Printf("jwt_handmade = %s", jwt_cookie)
 	// fmt.Println("+++++++++++++")
 	// session := sessions.Default(c)
-	var input domain.Auth // signInInput
+	var input domain.SignInInput
 
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -104,39 +105,40 @@ func (h *Handler) Logout(c *gin.Context)  {
 
 func (h *Handler) OAuthGoogle(c *gin.Context) {
 	urlReferer := c.Request.Referer()
-	googleScope := strings.Join(GOOGLE_SCOPES, " ")
+	scope := strings.Join(h.oauth.GoogleScopes, " ")
 
-	Url, err := url.Parse(GOOGLE_AUTH_URI)
+	Url, err := url.Parse(h.oauth.GoogleAuthUri)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
+
 	parameters := url.Values{}
-	parameters.Add("client_id", os.Getenv("GOOGLE_CLIENT_ID"))
-	parameters.Add("redirect_uri", GOOGLE_REDIRECT_URI)
-	parameters.Add("scope", googleScope)
+	parameters.Add("client_id", h.oauth.GoogleClientId)
+	parameters.Add("redirect_uri", h.oauth.GoogleRedirectUri)
+	parameters.Add("scope", scope)
 	parameters.Add("response_type", "code")
 	parameters.Add("state", urlReferer)
-	Url.RawQuery = parameters.Encode()
 
+	Url.RawQuery = parameters.Encode()
 	c.Redirect(http.StatusFound, Url.String())
 }
 
 func (h *Handler) OAuthVK(c *gin.Context)  {
 	urlReferer := c.Request.Referer()
-	scopeTemp := strings.Join(scope, "+")
+	scope := strings.Join(h.oauth.VkScopes, "+")
 
-	Url, err := url.Parse(vk_auth_path)
+	Url, err := url.Parse(h.oauth.VkAuthUri)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
+
 	parameters := url.Values{}
-	parameters.Add("client_id", os.Getenv("VK_CLIENT_ID"))
-	parameters.Add("redirect_uri", redirectURI)
-	parameters.Add("scope", scopeTemp)
+	parameters.Add("client_id", h.oauth.VkClientId)
+	parameters.Add("redirect_uri", h.oauth.VkRedirectUri)
+	parameters.Add("scope", scope)
 	parameters.Add("response_type", "code")
 	parameters.Add("state", urlReferer)
 
 	Url.RawQuery = parameters.Encode()
-
 	c.Redirect(http.StatusFound, Url.String())
 }

@@ -3,7 +3,7 @@ db:
   sslmode: "disable"
 mongodb:
   dbname: "api_db"
-  sslmode: "disable"
+  sslmode: false
 auth:
   accessTokenTTL: 120m
   refreshTokenTTL: 43200m #30 days

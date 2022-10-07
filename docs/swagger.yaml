@@ -38,6 +38,15 @@ definitions:
     required:
     - title
     type: object
+  domain.SignInInput:
+    properties:
+      login:
+        type: string
+      password:
+        type: string
+      strategy:
+        type: string
+    type: object
   domain.Verification:
     properties:
       code:
@@ -104,7 +113,7 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/domain.Auth'
+          $ref: '#/definitions/domain.SignInInput'
       produces:
       - application/json
       responses:

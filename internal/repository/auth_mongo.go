@@ -19,7 +19,7 @@ func NewAuthMongo(db *mongo.Database) *AuthMongo {
 	return &AuthMongo{db:db}
 }
 
-func (r *AuthMongo) CreateAuth(user domain.Auth) (primitive.ObjectID, error) {
+func (r *AuthMongo) CreateAuth(user domain.SignInInput) (primitive.ObjectID, error) {
 	var id primitive.ObjectID
 
 	collection := r.db.Collection(tblAuth)
@@ -36,7 +36,7 @@ func (r *AuthMongo) CreateAuth(user domain.Auth) (primitive.ObjectID, error) {
 	return id, nil
 }
 
-func chooseProvider(auth domain.Auth) (bson.D) {
+func chooseProvider(auth domain.SignInInput) (bson.D) {
 	if auth.Strategy == "local" {
 		return bson.D{{Key: "login", Value: auth.Login}, {Key: "password", Value: auth.Password}}
 	}
@@ -48,7 +48,7 @@ func chooseProvider(auth domain.Auth) (bson.D) {
 	return bson.D{{Key: "vkid", Value: "none"}}
 }
 
-func (r *AuthMongo) CheckExistAuth(auth domain.Auth) (domain.Auth, error) {
+func (r *AuthMongo) CheckExistAuth(auth domain.SignInInput) (domain.Auth, error) {
 	var user domain.Auth
 
 	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)
@@ -84,7 +84,7 @@ func (r *AuthMongo) GetAuth(auth domain.Auth) (domain.Auth, error) {
 	return user, err
 }
 
-func (r *AuthMongo) GetByCredentials(auth domain.Auth) (domain.Auth, error) {
+func (r *AuthMongo) GetByCredentials(auth domain.SignInInput) (domain.Auth, error) {
 	var user domain.Auth
 
 	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/mikalai2006/handmade/internal/config"
 	"github.com/mikalai2006/handmade/internal/service"
 	swaggerFiles "github.com/swaggo/files"     // swagger embed files
 	ginSwagger "github.com/swaggo/gin-swagger" // gin-swagger middleware
@@ -10,12 +11,14 @@ import (
 )
 
 type Handler struct {
-	services *service.Service
+	services *service.Services
+	oauth config.OauthConfig
 }
 
-func NewHandler(services *service.Service) *Handler  {
+func NewHandler(services *service.Services, oauth config.OauthConfig) *Handler  {
 	return &Handler{
 		services: services,
+		oauth: oauth,
 	}
 }
 
@@ -63,7 +66,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		}
 		shops := api.Group("/shops")
 		{
-			shops.GET("/", h.userIdentity, h.GetAllShops)
+			shops.GET("/",  h.GetAllShops)
 			shops.POST("/", h.userIdentity, h.CreateShop)
 		}
 	}

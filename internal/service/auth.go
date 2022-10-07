@@ -1,59 +1,66 @@
 package service
 
 import (
-	"os"
 	"time"
 
 	"github.com/mikalai2006/handmade/internal/domain"
 	"github.com/mikalai2006/handmade/internal/repository"
 	"github.com/mikalai2006/handmade/pkg/auths"
 	"github.com/mikalai2006/handmade/pkg/hasher"
-	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+type Tokens struct {
+	AccessToken  string
+	RefreshToken string
+}
+
 type AuthService struct {
-	repo repository.Authorization
+	hasher hasher.PasswordHasher
+	tokenManager auths.TokenManager
+
+	repository repository.Authorization
+
 	accessTokenTTL         time.Duration
 	refreshTokenTTL        time.Duration
 }
 
-func NewAuthService(repo repository.Authorization) *AuthService  {
+func NewAuthService(repo repository.Authorization, hasher hasher.PasswordHasher, tokenManager auths.TokenManager, refreshTokenTTL time.Duration, accessTokenTTL time.Duration) *AuthService  {
 	return &AuthService{
-		repo: repo,
-		accessTokenTTL: viper.GetDuration("auth.accessTokenTTL"),
-		refreshTokenTTL: viper.GetDuration("auth.refreshTokenTTL"),
+		hasher: hasher,
+		tokenManager: tokenManager,
+
+		repository: repo,
+
+		accessTokenTTL: accessTokenTTL,
+		refreshTokenTTL: refreshTokenTTL,
 	}
 }
 
-func (s *AuthService) CreateAuth(auth domain.Auth) (primitive.ObjectID, error) {
+func (s *AuthService) CreateAuth(auth domain.SignInInput) (primitive.ObjectID, error) {
 
-	// init salt
-	hasher := hasher.NewSHA1Hasher(os.Getenv("SALT"))
-	passwordHash, _ := hasher.Hash(auth.Password)
-	// if err != nil {
-	// 	return "0", err
-	// }
-	auth.Password = passwordHash
-	return s.repo.CreateAuth(auth)
-}
-
-
-func (s *AuthService) ExistAuth(auth domain.Auth) (domain.Auth, error) {
-	return s.repo.CheckExistAuth(auth)
-}
-
-func (s *AuthService) SignIn(auth domain.Auth) (Tokens, error)  {
-	// init salt
-	hasher := hasher.NewSHA1Hasher(viper.GetString("salt"))
-	passwordHash, err := hasher.Hash(auth.Password)
+	passwordHash, err := s.hasher.Hash(auth.Password)
 	if err != nil {
-		return Tokens{}, nil
+		return primitive.NewObjectID(), err
+	}
+	auth.Password = passwordHash
+	return s.repository.CreateAuth(auth)
+}
+
+
+func (s *AuthService) ExistAuth(auth domain.SignInInput) (domain.Auth, error) {
+	return s.repository.CheckExistAuth(auth)
+}
+
+func (s *AuthService) SignIn(auth domain.SignInInput) (Tokens, error)  {
+	passwordHash, err := s.hasher.Hash(auth.Password)
+	if err != nil {
+		return Tokens{}, err
 	}
 	auth.Password = passwordHash
 
-	user, err := s.repo.GetByCredentials(auth)
+	user, err := s.repository.GetByCredentials(auth)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return Tokens{}, err
@@ -71,17 +78,12 @@ func (s *AuthService) CreateSession(auth domain.Auth) (Tokens, error)  {
 		err error
 	)
 
-	tokenManager, err := auths.NewManager(os.Getenv("SIGNING_KEY"))
+	res.AccessToken, err = s.tokenManager.NewJWT(auth.Id.Hex(), s.accessTokenTTL)
 	if err != nil {
 		return res, err
 	}
 
-	res.AccessToken, err = tokenManager.NewJWT(auth.Id.Hex(), s.accessTokenTTL)
-	if err != nil {
-		return res, err
-	}
-
-	res.RefreshToken, err = tokenManager.NewRefreshToken()
+	res.RefreshToken, err = s.tokenManager.NewRefreshToken()
 	if err != nil {
 		return res, err
 	}
@@ -91,7 +93,7 @@ func (s *AuthService) CreateSession(auth domain.Auth) (Tokens, error)  {
 		ExpiresAt:    time.Now().Add(s.refreshTokenTTL),
 	}
 
-	err = s.repo.SetSession(auth.Id, session)
+	err = s.repository.SetSession(auth.Id, session)
 
 	return res, err
 }

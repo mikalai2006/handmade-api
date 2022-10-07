@@ -1,16 +1,24 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/mikalai2006/handmade"
+	"github.com/mikalai2006/handmade/internal/config"
 	"github.com/mikalai2006/handmade/internal/handler"
 	"github.com/mikalai2006/handmade/internal/repository"
+	"github.com/mikalai2006/handmade/internal/server"
 	"github.com/mikalai2006/handmade/internal/service"
+	"github.com/mikalai2006/handmade/pkg/auths"
+	"github.com/mikalai2006/handmade/pkg/hasher"
+	"github.com/mikalai2006/handmade/pkg/logger"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
 
 // @title Handmade API
@@ -29,55 +37,79 @@ func main() {
 	logrus.SetFormatter(new(logrus.JSONFormatter))
 
 	// read config file
-	if err := initConfig(); err != nil {
-		logrus.Fatalf("Error initializing config: %s", err.Error())
+	cfg, err := config.Init("configs")
+	if err != nil {
+		logger.Error(err)
+		return
 	}
-
-	// read env configs
-	if err :=godotenv.Load(); err != nil {
-		logrus.Fatalf("Error loading env envirables: %s", err.Error())
-	}
-
-	// initialize postgres
-	// db, err := repository.NewPostgresDB(repository.Config{
-	// 	Host: os.Getenv("PG_HOST"),
-	// 	Port: os.Getenv("PG_PORT"),
-	// 	DBName: viper.GetString("db.dbname"),
-	// 	Username: os.Getenv("PG_USER"),
-	// 	SSLMode: viper.GetString("db.sslmode"),
-	// 	Password: os.Getenv("PG_PASSWORD"),
-	// })
-	// if err != nil {
-	// 	logrus.Fatalf("Failed to initialize postgres db: %s", err.Error())
-	// }
 
 	// initialize mongoDB
-	mongoDB, err := repository.NewMongoDB(repository.ConfigMongoDB{
-		Host: os.Getenv("MONGODB_HOST"),
-		Port: os.Getenv("MONGODB_PORT"),
-		DBName: viper.GetString("mongodb.dbname"),
-		Username: os.Getenv("MONGODB_USER"),
-		// SSL: viper.GetString("mongodb.ssl"),
-		Password: os.Getenv("MONGODB_PASSWORD"),
+	mongoClient, err := repository.NewMongoDB(repository.ConfigMongoDB{
+		Host: cfg.Mongo.Host,
+		Port: cfg.Mongo.Port,
+		DBName: cfg.Mongo.Dbname,
+		Username: cfg.Mongo.User,
+		SSL: cfg.Mongo.SslMode,
+		Password: cfg.Mongo.Password,
 	})
+
 	if err != nil {
-		logrus.Fatalf("Failed to initialize mongoDB: %s", err.Error())
+		logger.Error(err)
 	}
-	logrus.Debug(mongoDB)
 
+	mongoDB := mongoClient.Database(cfg.Mongo.Dbname)
 
-	repos := repository.NewRepository(mongoDB)
-	services := service.NewService(repos)
-	handlers := handler.NewHandler(services)
-
-	srv := new(handmade.Server)
-	if err := srv.Run(os.Getenv("PORT"), handlers.InitRoutes()); err != nil {
-		logrus.Fatalf("Error starting server: %s", err.Error())
+	if (cfg.Environment != "prod") {
+		logger.Info(mongoDB)
 	}
-}
 
-func initConfig() error {
-	viper.AddConfigPath("configs")
-	viper.SetConfigName("config")
-	return viper.ReadInConfig()
+	// initialize hasher
+	hasher := hasher.NewSHA1Hasher(cfg.Auth.Salt)
+
+	// initialize token manager
+	tokenManager, err := auths.NewManager(cfg.Auth.SigningKey)
+	if err != nil {
+		logger.Error(err)
+
+		return
+	}
+
+	repositories := repository.NewRepositories(mongoDB)
+	services := service.NewServices(&service.ConfigServices{
+		Repositories: repositories,
+		Hasher: hasher,
+		TokenManager: tokenManager,
+		AccessTokenTTL: cfg.Auth.AccessTokenTTL,
+		RefreshTokenTTL: cfg.Auth.RefreshTokenTTL,
+	})
+	handlers := handler.NewHandler(services, cfg.Oauth)
+
+	// initialize server
+	srv := server.NewServer(cfg, handlers.InitRoutes())
+
+	go func ()  {
+		if err := srv.Run(); !errors.Is(err, http.ErrServerClosed) {
+			logger.Errorf("Error starting server: %s", err.Error())
+		}
+	}()
+
+	logger.Infof("API service start on port: %s", cfg.HTTP.Port)
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<- quit
+
+	logger.Info("API service shutdown")
+	const timeout = 5 * time.Second
+
+	ctx, shutdown := context.WithTimeout(context.Background(), timeout)
+	defer shutdown()
+
+	if err := srv.Stop(ctx); err != nil {
+		logger.Errorf("failed to stop server: %v", err)
+	}
+
+	if err := mongoClient.Disconnect(context.Background()); err != nil {
+		logger.Error(err.Error())
+	}
 }

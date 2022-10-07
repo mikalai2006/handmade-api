@@ -6,19 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikalai2006/handmade/internal/domain"
-	"github.com/spf13/viper"
-)
-
-var (
-	vk_auth_path = "https://oauth.vk.com/authorize"
-	// clientID     = os.Getenv("VK_CLIENT_ID")
-	// clientSecret = os.Getenv("VK_CLIENT_SECRET")
-	redirectURI  = "http://localhost:8000/me"
-	scope        = []string{"account"}
 )
 
 type VKBodyResponse struct {
@@ -39,15 +30,36 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	urlR := fmt.Sprintf("https://oauth.vk.com/access_token?client_id=%s&client_secret=%s&redirect_uri=%s&code=%s",
-	os.Getenv("VK_CLIENT_ID"), os.Getenv("VK_CLIENT_SECRET"), redirectURI, code)
-	req, _ := http.NewRequest("POST", urlR, nil)
+	Url, err := url.Parse(h.oauth.VkTokenUri)
+	if err != nil {
+		panic("boom")
+	}
+	parameters := url.Values{}
+	parameters.Set("client_id", h.oauth.VkClientId)
+	parameters.Set("client_secret", h.oauth.VkClientSecret)
+	parameters.Set("redirect_uri", h.oauth.VkRedirectUri)
+	parameters.Set("code", code)
+
+	req, _ := http.NewRequest("POST", Url.String(), strings.NewReader(parameters.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// urlR := fmt.Sprintf("https://oauth.vk.com/access_token?client_id=%s&client_secret=%s&redirect_uri=%s&code=%s",
+	// h.oauth.VkClientId, h.oauth.VkClientSecret, h.oauth.VkRedirectUri, code)
+	// req, _ := http.NewRequest("POST", urlR, nil)
+	// resp, err := http.DefaultClient.Do(req)
+	// if err != nil {
+	// 	newErrorResponse(c, http.StatusInternalServerError, err.Error())
+	// 	return
+	// }
 	defer resp.Body.Close()
+
+
+
 
 	token := struct {
 		AccessToken string `json:"access_token"`
@@ -62,17 +74,33 @@ func (h *Handler) Me(c *gin.Context) {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
 
-	urlR = fmt.Sprintf("https://api.vk.com/method/%s?v=5.131&access_token=%s", "users.get", token.AccessToken)
-	req, err = http.NewRequest("GET", urlR, nil)
+	Url, err = url.Parse(h.oauth.VkUserinfoUri)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
-		return
+		panic("boom")
 	}
+	parameters = url.Values{}
+	parameters.Set("access_token", token.AccessToken)
+	parameters.Set("v", "5.131")
+
+	req, _ = http.NewRequest("POST", Url.String(), strings.NewReader(parameters.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// urlR = fmt.Sprintf("https://api.vk.com/method/%s?v=5.131&access_token=%s", "users.get", token.AccessToken)
+	// req, err = http.NewRequest("GET", urlR, nil)
+	// if err != nil {
+	// 	newErrorResponse(c, http.StatusInternalServerError, err.Error())
+	// 	return
+	// }
+	// resp, err = http.DefaultClient.Do(req)
+	// if err != nil {
+	// 	newErrorResponse(c, http.StatusInternalServerError, err.Error())
+	// 	return
+	// }
 	defer resp.Body.Close()
 
 	bytes, err = io.ReadAll(resp.Body)
@@ -85,7 +113,7 @@ func (h *Handler) Me(c *gin.Context) {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
 
-	input := domain.Auth{
+	input := domain.SignInInput{
 		Login:    bodyResponse.Response[0].FirstName,
 		Strategy: "jwt",
 		Password: "",
@@ -116,15 +144,15 @@ func (h *Handler) Me(c *gin.Context) {
 	// 	newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	// 	return
 	// }
-	Url, err := url.Parse(clientUrl)
+	Url, err = url.Parse(clientUrl)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 	}
-	parameters := url.Values{}
+	parameters = url.Values{}
 	parameters.Add("token", tokens.AccessToken)
 	Url.RawQuery = parameters.Encode()
 	// c.Redirect(http.StatusMovedPermanently, path)
-	c.SetCookie("jwt-handmade", tokens.RefreshToken, viper.GetInt("oauth.timeExpireCookie"), "/", c.Request.URL.Hostname(), false, true)
+	c.SetCookie("jwt-handmade", tokens.RefreshToken, h.oauth.TimeExpireCookie, "/", c.Request.URL.Hostname(), false, true)
 	c.Redirect(http.StatusFound, Url.String())
 
 }

@@ -14,7 +14,7 @@ func NewShopService(repo repository.Shop) *ShopService  {
 }
 
 
-func (s *ShopService) GetAllShops() ([]*domain.Shop, error) {
+func (s *ShopService) GetAllShops() (domain.Response, error) {
 	return s.repo.GetAllShops()
 }
 
