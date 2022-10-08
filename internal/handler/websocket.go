@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/mikalai2006/handmade/internal/domain"
 )
 
 // We'll need to define an Upgrader
@@ -48,7 +49,7 @@ func reader(h *Handler, c *gin.Context, ws *websocket.Conn) {
 
 		//If client message is ping will return pong
 		if m.Method == "find" {
-			response, err := h.services.Shop.GetAllShops()
+			response, err := h.services.Shop.GetAllShops(domain.RequestParams{})
 			if err != nil {
 				newErrorResponse(c, http.StatusInternalServerError, err.Error())
 			}

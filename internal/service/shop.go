@@ -14,8 +14,8 @@ func NewShopService(repo repository.Shop) *ShopService  {
 }
 
 
-func (s *ShopService) GetAllShops() (domain.Response, error) {
-	return s.repo.GetAllShops()
+func (s *ShopService) GetAllShops(params domain.RequestParams) (domain.Response, error) {
+	return s.repo.GetAllShops(params)
 }
 
 func (s *ShopService) CreateShop(userId string, shop domain.Shop) (*domain.Shop, error)  {
