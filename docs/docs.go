@@ -23,7 +23,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "get all shops",
+                "description": "Input params for search shops",
                 "consumes": [
                     "application/json"
                 ],
@@ -33,14 +33,51 @@ const docTemplate = `{
                 "tags": [
                     "shop"
                 ],
-                "summary": "Shop Get all shops",
+                "summary": "Find shops by params",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "name": "$limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "$skip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "created_at",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "description",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "seo",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "user_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/domain.Shop"
+                                "$ref": "#/definitions/domain.Response"
                             }
                         }
                     },
@@ -216,6 +253,24 @@ const docTemplate = `{
                 }
             }
         },
+        "domain.Response": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {}
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "skip": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "domain.Session": {
             "type": "object",
             "properties": {
@@ -229,10 +284,10 @@ const docTemplate = `{
         },
         "domain.Shop": {
             "type": "object",
-            "required": [
-                "title"
-            ],
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -240,7 +295,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
-                    "description": "Id          int    ` + "`" + `json:\"id\" bson:\"_id\"` + "`" + `",
                     "type": "string"
                 },
                 "user_id": {

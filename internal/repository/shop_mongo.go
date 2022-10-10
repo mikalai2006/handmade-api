@@ -22,34 +22,57 @@ func NewShopMongo(db *mongo.Database) *ShopMongo {
 }
 
 
-func (r *ShopMongo) GetAllShops(params domain.RequestParams) (domain.Response, error) {
-	var results []domain.Shop
-	var response domain.Response
-
+func (r *ShopMongo) Find(params domain.RequestParams) (domain.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)
 	defer cancel()
 
-	pipe := mongo.Pipeline{}
-	pipe = append(pipe, bson.D{{Key: "$match", Value: params.Filter}})
-	// opts := options.Find()
-	if params.Options.Sort != nil {
-		// opts.SetSort(params.Options.Sort)
-		pipe = append(pipe, bson.D{{Key: "$sort", Value: params.Options.Sort}})
-	}
-	if params.Options.Skip != 0 {
-		// opts.SetSkip(params.Options.Skip)
-		pipe = append(pipe, bson.D{{Key: "$skip", Value: params.Options.Skip}})
-	}
-	if params.Options.Limit != 0 {
-		// opts.SetLimit(params.Options.Limit)
-		pipe = append(pipe, bson.D{{Key: "$limit", Value: params.Options.Limit}})
+	var results []domain.Shop
+	var response domain.Response
+	filter, opts, err := CreateFilterAndOptions(params)
+	if err != nil {
+		return domain.Response{}, err
 	}
 
-	// pipe = append(pipe, bson.D{
-	// 	{Key: "$group", Value: bson.M{
-	// 		"_id":    "$title",
-	// 		"count": bson.M{"$sum": 1},
-	// }}})
+	cursor, err := r.db.Collection(collectionName).Find(ctx, filter, opts)
+	if err != nil {
+		return response, err
+	}
+	defer cursor.Close(ctx)
+
+	if err := cursor.All(ctx, &results); err != nil {
+		return response, err
+	}
+
+	var resultSlice []interface{} = make([]interface{}, len(results))
+	for i, d := range results {
+		resultSlice[i] = d
+	}
+
+	count,err := r.db.Collection(collectionName).CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return response, err
+	}
+
+	response = domain.Response{
+		Total: count,
+		Skip: int(params.Options.Skip),
+		Limit: int(params.Options.Limit),
+		Data: resultSlice,
+	}
+	return response, nil
+}
+
+func (r *ShopMongo) GetAllShops(params domain.RequestParams) (domain.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)
+	defer cancel()
+
+	var results []domain.Shop
+	var response domain.Response
+	pipe, err := CreatePipeline(params)
+	if err != nil {
+		return domain.Response{}, err
+	}
+
 	cursor, err := r.db.Collection(collectionName).Aggregate(ctx, pipe) // Find(ctx, params.Filter, opts)
 	if err != nil {
 		return response, err

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mikalai2006/handmade/internal/domain"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -31,11 +33,7 @@ type ConfigMongoDB struct {
 
 
 func NewMongoDB(cfg ConfigMongoDB) (*mongo.Client, error) {
-	// ctx will be used to set deadline for process, here
-	// deadline will of 30 seconds.
 	ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
-	// Release resource when the main
-	// function is returned.
 	defer cancel()
 
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/%s?authSource=admin&readPreference=primary&directConnection=true&ssl=%t",
@@ -46,17 +44,54 @@ func NewMongoDB(cfg ConfigMongoDB) (*mongo.Client, error) {
 			return nil, err
 		}
 
-		// defer func() {
-		// 	if err := client.Disconnect(context.Background()); err != nil {
-		// 		panic(err)
-		// 	}
-		// 	logrus.Print("mongo connection disconnect successfully")
-		// }()
-
 		if err := client.Ping(ctx, readpref.Primary()); err != nil {
 			return nil, err
 		}
 
 
 	return client, nil
+}
+
+
+func CreatePipeline(params domain.RequestParams) (mongo.Pipeline, error) {
+	pipe := mongo.Pipeline{}
+	pipe = append(pipe, bson.D{{Key: "$match", Value: params.Filter}})
+	// opts := options.Find()
+	if params.Options.Sort != nil {
+		// opts.SetSort(params.Options.Sort)
+		pipe = append(pipe, bson.D{{Key: "$sort", Value: params.Options.Sort}})
+	}
+	if params.Options.Skip != 0 {
+		// opts.SetSkip(params.Options.Skip)
+		pipe = append(pipe, bson.D{{Key: "$skip", Value: params.Options.Skip}})
+	}
+	if params.Options.Limit != 0 {
+		// opts.SetLimit(params.Options.Limit)
+		pipe = append(pipe, bson.D{{Key: "$limit", Value: params.Options.Limit}})
+	}
+
+	// pipe = append(pipe, bson.D{
+	// 	{Key: "$group", Value: bson.M{
+	// 		"_id":    "$title",
+	// 		"count": bson.M{"$sum": 1},
+	// }}})
+
+	return pipe, nil
+}
+
+func CreateFilterAndOptions(params domain.RequestParams) (interface{}, *options.FindOptions, error) {
+	opts := options.Find()
+	if params.Options.Sort != nil {
+		opts.SetSort(params.Options.Sort)
+	}
+	if params.Options.Skip != 0 {
+		opts.SetSkip(params.Options.Skip)
+	}
+	if params.Options.Limit != 0 {
+		opts.SetLimit(params.Options.Limit)
+	}
+
+	filter := params.Filter
+
+	return filter, opts, nil
 }

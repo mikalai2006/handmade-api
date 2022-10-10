@@ -17,6 +17,18 @@ definitions:
     - login
     - password
     type: object
+  domain.Response:
+    properties:
+      data:
+        items: {}
+        type: array
+      limit:
+        type: integer
+      skip:
+        type: integer
+      total:
+        type: integer
+    type: object
   domain.Session:
     properties:
       expiresAt:
@@ -26,17 +38,16 @@ definitions:
     type: object
   domain.Shop:
     properties:
+      created_at:
+        type: string
       description:
         type: string
       seo:
         type: string
       title:
-        description: Id          int    `json:"id" bson:"_id"`
         type: string
       user_id:
         type: string
-    required:
-    - title
     type: object
   domain.SignInInput:
     properties:
@@ -70,7 +81,29 @@ paths:
     get:
       consumes:
       - application/json
-      description: get all shops
+      description: Input params for search shops
+      parameters:
+      - in: query
+        name: $limit
+        type: integer
+      - in: query
+        name: $skip
+        type: integer
+      - in: query
+        name: created_at
+        type: string
+      - in: query
+        name: description
+        type: string
+      - in: query
+        name: seo
+        type: string
+      - in: query
+        name: title
+        type: string
+      - in: query
+        name: user_id
+        type: string
       produces:
       - application/json
       responses:
@@ -78,7 +111,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/domain.Shop'
+              $ref: '#/definitions/domain.Response'
             type: array
         "400":
           description: Bad Request
@@ -98,7 +131,7 @@ paths:
             $ref: '#/definitions/handler.errorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Shop Get all shops
+      summary: Find shops by params
       tags:
       - shop
   /auth/sign-in:

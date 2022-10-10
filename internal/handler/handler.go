@@ -79,7 +79,7 @@ func (h *Handler) InitRoutes(cfg config.Config) *gin.Engine {
 		}
 		shops := api.Group("/shops")
 		{
-			shops.GET("/",  h.GetAllShops)
+			shops.GET("/",  h.Find)
 			shops.POST("/", h.userIdentity, h.CreateShop)
 		}
 	}

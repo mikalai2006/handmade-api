@@ -15,6 +15,8 @@ type Authorization interface {
 }
 
 type Shop interface {
+	Find(params domain.RequestParams) (domain.Response, error)
+
 	GetAllShops(params domain.RequestParams) (domain.Response, error)
 	CreateShop(userId string, shop domain.Shop) (*domain.Shop, error)
 }
