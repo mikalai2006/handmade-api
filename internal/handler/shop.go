@@ -5,23 +5,36 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikalai2006/handmade/internal/domain"
+	"github.com/mikalai2006/handmade/internal/middleware"
+	"github.com/mikalai2006/handmade/internal/utils"
 )
 
+
+func (h *Handler) registerShop(router *gin.RouterGroup) {
+		shops := router.Group("/shops")
+		{
+			shops.GET("/",  h.Find)
+			shops.POST("/", middleware.SetUserIdentity, h.CreateShop)
+		}
+}
+
+
 func (h *Handler) CreateShop(c *gin.Context) {
-	userId, err := getUserId(c)
+	userId, err := middleware.GetUserId(c)
 	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
 
 	var input domain.Shop
 	if err := c.BindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusUnauthorized, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
 	shop, err := h.services.Shop.CreateShop(userId, input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -41,16 +54,16 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // @Failure default {object} errorResponse
 // @Router /api/shops [get]
 func (h *Handler) GetAllShops(c *gin.Context) {
-	params, err := getParamsFromRequest(c, domain.Shop{})
+	params, err := utils.GetParamsFromRequest(c, domain.Shop{})
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 
 		return
 	}
 
 	shops, err := h.services.Shop.GetAllShops(params)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 
 		return
 	}
@@ -77,16 +90,16 @@ type inputs struct {
 // @Failure default {object} errorResponse
 // @Router /api/shops [get]
 func (h *Handler) Find(c *gin.Context) {
-	params, err := getParamsFromRequest(c, domain.Shop{})
+	params, err := utils.GetParamsFromRequest(c, domain.Shop{})
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 
 		return
 	}
 
 	shops, err := h.services.Shop.Find(params)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 
 		return
 	}

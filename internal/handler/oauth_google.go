@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,13 +26,38 @@ type GoogleUserInfo struct {
 	Gender        string `json:"gender"`
 }
 
+func (h *Handler) registerGoogleOAuth(router *gin.RouterGroup) {
+	router.GET("/google", h.OAuthGoogle)
+	router.GET("/google/me", h.MeGoogle)
+}
+
+func (h *Handler) OAuthGoogle(c *gin.Context) {
+	urlReferer := c.Request.Referer()
+	scope := strings.Join(h.oauth.GoogleScopes, " ")
+
+	Url, err := url.Parse(h.oauth.GoogleAuthUri)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+	}
+
+	parameters := url.Values{}
+	parameters.Add("client_id", h.oauth.GoogleClientId)
+	parameters.Add("redirect_uri", h.oauth.GoogleRedirectUri)
+	parameters.Add("scope", scope)
+	parameters.Add("response_type", "code")
+	parameters.Add("state", urlReferer)
+
+	Url.RawQuery = parameters.Encode()
+	c.Redirect(http.StatusFound, Url.String())
+}
+
 func (h *Handler) MeGoogle(c *gin.Context) {
 
 	code := c.Query("code")
 	clientUrl := c.Query("state")
 
 	if code == "" {
-		newErrorResponse(c, http.StatusInternalServerError, "No correct auth")
+		c.AbortWithError(http.StatusBadRequest, errors.New("no correct code"))
 		return
 	}
 
@@ -50,7 +76,7 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	defer resp.Body.Close()
@@ -61,11 +87,12 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	if err := json.Unmarshal(bytes, &token); err != nil { // Parse []byte to go struct pointer
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 
 	UrlInfo, err := url.Parse(h.oauth.GoogleUserinfoUri)
@@ -79,19 +106,19 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 
 	resp, err = http.DefaultClient.Do(r)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	defer resp.Body.Close()
 
 	bytes, err = io.ReadAll(resp.Body)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
 	var bodyResponse GoogleUserInfo
 	if err := json.Unmarshal(bytes, &bodyResponse); err != nil { // Parse []byte to go struct pointer
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
 	input := domain.SignInInput{
@@ -103,27 +130,27 @@ func (h *Handler) MeGoogle(c *gin.Context) {
 
 	user, err := h.services.Authorization.ExistAuth(input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
 	if user.Login == "" {
 		_, err = h.services.Authorization.CreateAuth(input)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError, err.Error())
+			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
 	}
 
 	tokens, err := h.services.Authorization.SignIn(input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
 	Url, err = url.Parse(clientUrl)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 	parameters = url.Values{}
 	parameters.Add("token", tokens.AccessToken)

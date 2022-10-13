@@ -23,7 +23,7 @@ tests:
 lint:
 	golangci-lint run
 
-swagger:
+doc:
 	swag init -g cmd/main.go
 
 env:

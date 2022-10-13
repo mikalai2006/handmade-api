@@ -10,7 +10,7 @@ import (
 
 var (
 	vkAuthUri = "https://oauth.vk.com/authorize"
-	vkRedirectUri = "http://localhost:8000/me"
+	vkRedirectUri = "http://localhost:8000/oauth/vk/me"
 	VkTokenUri = "https://oauth.vk.com/access_token"
 	VkUserinfoUri = "https://api.vk.com/method/users.get"
 	vkScopes = []string{"account"}
@@ -18,11 +18,13 @@ var (
 	googleAuthUri = "https://accounts.google.com/o/oauth2/auth"
 	googleTokenUri = "https://accounts.google.com/o/oauth2/token"
 	googleUserinfoUri = "https://www.googleapis.com/oauth2/v3/userinfo"
-	googleRedirectUri = "http://localhost:8000/googleme"
+	googleRedirectUri = "http://localhost:8000/oauth/google/me"
 	googleScopes = []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"}
 
 	EnvLocal = "local"
 	Prod     = "prod"
+
+	defaultVerificationCodeLength = 10
 )
 
 type (
@@ -75,6 +77,8 @@ type (
 		SigningKey string
 		AccessTokenTTL  time.Duration `mapstructure:"accessTokenTTL"`
 		RefreshTokenTTL time.Duration `mapstructure:"refreshTokenTTL"`
+
+		VerificationCodeLength int
 	}
 
 	HTTPConfig struct {
@@ -172,5 +176,7 @@ func setDefaultConfigs(cfg *Config)  {
 	cfg.Oauth.GoogleTokenUri = googleTokenUri
 	cfg.Oauth.GoogleUserinfoUri = googleUserinfoUri
 	cfg.Oauth.GoogleScopes = googleScopes
+
+	cfg.Auth.VerificationCodeLength = defaultVerificationCodeLength
 
 }

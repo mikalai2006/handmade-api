@@ -13,11 +13,11 @@ func NewShopService(repo repository.Shop) *ShopService  {
 	return &ShopService{repo: repo}
 }
 
-func (s *ShopService) Find(params domain.RequestParams) (domain.Response, error) {
+func (s *ShopService) Find(params domain.RequestParams) (domain.Response[domain.Shop], error) {
 	return s.repo.Find(params)
 }
 
-func (s *ShopService) GetAllShops(params domain.RequestParams) (domain.Response, error) {
+func (s *ShopService) GetAllShops(params domain.RequestParams) (domain.Response[domain.Shop], error) {
 	return s.repo.GetAllShops(params)
 }
 

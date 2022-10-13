@@ -15,6 +15,7 @@ import (
 	"github.com/mikalai2006/handmade/internal/repository"
 	"github.com/mikalai2006/handmade/internal/server"
 	"github.com/mikalai2006/handmade/internal/service"
+	"github.com/mikalai2006/handmade/internal/utils"
 	"github.com/mikalai2006/handmade/pkg/auths"
 	"github.com/mikalai2006/handmade/pkg/hasher"
 	"github.com/mikalai2006/handmade/pkg/logger"
@@ -74,13 +75,18 @@ func main() {
 		return
 	}
 
+	// intiale opt
+	otpGenerator := utils.NewGOTPGenerator()
+
 	repositories := repository.NewRepositories(mongoDB)
 	services := service.NewServices(&service.ConfigServices{
 		Repositories: repositories,
 		Hasher: hasher,
 		TokenManager: tokenManager,
+		OtpGenerator: otpGenerator,
 		AccessTokenTTL: cfg.Auth.AccessTokenTTL,
 		RefreshTokenTTL: cfg.Auth.RefreshTokenTTL,
+		VerificationCodeLength: cfg.Auth.VerificationCodeLength,
 	})
 	handlers := handler.NewHandler(services, cfg.Oauth)
 

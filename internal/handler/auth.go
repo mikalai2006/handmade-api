@@ -1,14 +1,23 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikalai2006/handmade/internal/domain"
+	"github.com/mikalai2006/handmade/internal/middleware"
 )
+
+func (h *Handler) registerAuth(router *gin.RouterGroup) {
+		router.POST("/sign-up", h.SignUp)
+		router.POST("/sign-in", h.SignIn)
+		router.POST("/logout", h.Logout)
+		router.POST("/refresh", h.tokenRefresh)
+		router.GET("/refresh", h.tokenRefresh)
+		router.GET("/verification/:code", middleware.SetUserIdentity, h.VerificationAuth)
+}
 
 // @Summary SignUp
 // @Tags auth
@@ -26,13 +35,13 @@ func (h *Handler) SignUp(c *gin.Context) {
 	var input  domain.SignInInput
 
 	if err := c.BindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
 	id, err := h.services.Authorization.CreateAuth(input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -64,7 +73,7 @@ func (h *Handler) SignIn(c *gin.Context) {
 	var input domain.SignInInput
 
 	if err := c.BindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -72,16 +81,22 @@ func (h *Handler) SignIn(c *gin.Context) {
 		input.Strategy = "local"
 	}
 
+	if input.Email == "" && input.Login == "" {
+		c.AbortWithError(http.StatusBadRequest, errors.New("request must be with email or login"))
+		return
+	}
+
 	if input.Strategy == "local" {
 		tokens, err := h.services.Authorization.SignIn(input)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError, err.Error())
+			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
-		c.SetCookie("jwt-handmade", tokens.RefreshToken, 900, "/", "", false, true)
-		c.JSON(http.StatusOK, map[string]interface{}{
-			"token_access": tokens.AccessToken,
-			"refresh_token": tokens.RefreshToken,
+		c.SetCookie("jwt-handmade", tokens.RefreshToken, h.oauth.TimeExpireCookie, "/", c.Request.URL.Hostname(), false, true)
+
+		c.JSON(http.StatusOK, domain.ResponseTokens{
+			AccessToken:  tokens.AccessToken,
+			RefreshToken: tokens.RefreshToken,
 		})
 	} else {
 		fmt.Print("JWT auth")
@@ -89,6 +104,50 @@ func (h *Handler) SignIn(c *gin.Context) {
 	// session.Set(userkey, input.Username)
 	// session.Save()
 }
+
+// @Summary User Refresh Tokens
+// @Tags users-auth
+// @Description user refresh tokens
+// @Accept  json
+// @Produce  json
+// @Param input body refreshInput true "sign up info"
+// @Success 200 {object} tokenResponse
+// @Failure 400,404 {object} response
+// @Failure 500 {object} response
+// @Failure default {object} response
+// @Router /users/auth/refresh [post]
+func (h *Handler) tokenRefresh(c *gin.Context) {
+	jwt_cookie, _ := c.Cookie("jwt-handmade")
+	// fmt.Println("jwt_handmade = ", jwt_cookie)
+	// jwt_header := c.GetHeader("hello")
+	// fmt.Println("jwt_header = ", jwt_header)
+	// fmt.Println("+++++++++++++")
+	// session := sessions.Default(c)
+	var input domain.RefreshInput
+
+	if jwt_cookie == "" {
+		if err := c.BindJSON(&input); err != nil {
+			c.AbortWithError(http.StatusBadRequest, errors.New("invalid input body"))
+			return
+		}
+	} else {
+		input.Token = jwt_cookie
+	}
+
+	res, err := h.services.Authorization.RefreshTokens(input.Token)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.SetCookie("jwt-handmade", res.RefreshToken, h.oauth.TimeExpireCookie, "/", c.Request.URL.Hostname(), false, true)
+
+	c.JSON(http.StatusOK, domain.ResponseTokens{
+		AccessToken:  res.AccessToken,
+		RefreshToken: res.RefreshToken,
+	})
+}
+
 
 func (h *Handler) Logout(c *gin.Context)  {
 	// session := sessions.Default(c)
@@ -103,42 +162,26 @@ func (h *Handler) Logout(c *gin.Context)  {
 	})
 }
 
-func (h *Handler) OAuthGoogle(c *gin.Context) {
-	urlReferer := c.Request.Referer()
-	scope := strings.Join(h.oauth.GoogleScopes, " ")
 
-	Url, err := url.Parse(h.oauth.GoogleAuthUri)
-	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+func (h *Handler) VerificationAuth(c *gin.Context) {
+	code := c.Param("code")
+	if code == "" {
+		c.AbortWithError(http.StatusBadRequest, errors.New("code empty"))
+		return
 	}
 
-	parameters := url.Values{}
-	parameters.Add("client_id", h.oauth.GoogleClientId)
-	parameters.Add("redirect_uri", h.oauth.GoogleRedirectUri)
-	parameters.Add("scope", scope)
-	parameters.Add("response_type", "code")
-	parameters.Add("state", urlReferer)
-
-	Url.RawQuery = parameters.Encode()
-	c.Redirect(http.StatusFound, Url.String())
-}
-
-func (h *Handler) OAuthVK(c *gin.Context)  {
-	urlReferer := c.Request.Referer()
-	scope := strings.Join(h.oauth.VkScopes, "+")
-
-	Url, err := url.Parse(h.oauth.VkAuthUri)
+	userId, err := middleware.GetUserId(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 
-	parameters := url.Values{}
-	parameters.Add("client_id", h.oauth.VkClientId)
-	parameters.Add("redirect_uri", h.oauth.VkRedirectUri)
-	parameters.Add("scope", scope)
-	parameters.Add("response_type", "code")
-	parameters.Add("state", urlReferer)
+	if err := h.services.Authorization.VerificationCode(userId, code); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 
-	Url.RawQuery = parameters.Encode()
-	c.Redirect(http.StatusFound, Url.String())
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+	})
 }

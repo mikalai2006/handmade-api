@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,11 +23,37 @@ type VKBodyResponse struct {
 	} `json:"response"`
 }
 
-func (h *Handler) Me(c *gin.Context) {
+func (h *Handler) registerVkOAuth(router *gin.RouterGroup) {
+	router.GET("/vk", h.OAuthVK)
+	router.GET("/vk/me", h.MeVk)
+}
+
+func (h *Handler) OAuthVK(c *gin.Context)  {
+	urlReferer := c.Request.Referer()
+	scope := strings.Join(h.oauth.VkScopes, "+")
+
+	Url, err := url.Parse(h.oauth.VkAuthUri)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+	}
+
+	parameters := url.Values{}
+	parameters.Add("client_id", h.oauth.VkClientId)
+	parameters.Add("redirect_uri", h.oauth.VkRedirectUri)
+	parameters.Add("scope", scope)
+	parameters.Add("response_type", "code")
+	parameters.Add("state", urlReferer)
+
+	Url.RawQuery = parameters.Encode()
+	c.Redirect(http.StatusFound, Url.String())
+}
+
+
+func (h *Handler) MeVk(c *gin.Context) {
 	code := c.Query("code")
 	clientUrl := c.Query("state")
 	if code == "" {
-		newErrorResponse(c, http.StatusInternalServerError, "No correct auth")
+		c.AbortWithError(http.StatusBadRequest, errors.New("no correct code"))
 		return
 	}
 
@@ -44,7 +71,7 @@ func (h *Handler) Me(c *gin.Context) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -67,11 +94,11 @@ func (h *Handler) Me(c *gin.Context) {
 
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	if err := json.Unmarshal(bytes, &token); err != nil { // Parse []byte to go struct pointer
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
 	Url, err = url.Parse(h.oauth.VkUserinfoUri)
@@ -86,7 +113,7 @@ func (h *Handler) Me(c *gin.Context) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -105,12 +132,12 @@ func (h *Handler) Me(c *gin.Context) {
 
 	bytes, err = io.ReadAll(resp.Body)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
 	var bodyResponse VKBodyResponse
 	if err := json.Unmarshal(bytes, &bodyResponse); err != nil { // Parse []byte to go struct pointer
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
 	input := domain.SignInInput{
@@ -122,21 +149,21 @@ func (h *Handler) Me(c *gin.Context) {
 
 	user, err := h.services.Authorization.ExistAuth(input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
 	if user.Login == "" {
 		_, err = h.services.Authorization.CreateAuth(input)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError, err.Error())
+			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
 	}
 
 	tokens, err := h.services.Authorization.SignIn(input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	// tokenAPI, err := h.services.Authorization.GenerateToken(input)
@@ -146,7 +173,7 @@ func (h *Handler) Me(c *gin.Context) {
 	// }
 	Url, err = url.Parse(clientUrl)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.AbortWithError(http.StatusBadRequest, err)
 	}
 	parameters = url.Values{}
 	parameters.Add("token", tokens.AccessToken)

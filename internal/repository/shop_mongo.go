@@ -22,15 +22,15 @@ func NewShopMongo(db *mongo.Database) *ShopMongo {
 }
 
 
-func (r *ShopMongo) Find(params domain.RequestParams) (domain.Response, error) {
+func (r *ShopMongo) Find(params domain.RequestParams) (domain.Response[domain.Shop], error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)
 	defer cancel()
 
 	var results []domain.Shop
-	var response domain.Response
+	var response domain.Response[domain.Shop]
 	filter, opts, err := CreateFilterAndOptions(params)
 	if err != nil {
-		return domain.Response{}, err
+		return domain.Response[domain.Shop]{}, err
 	}
 
 	cursor, err := r.db.Collection(collectionName).Find(ctx, filter, opts)
@@ -43,17 +43,18 @@ func (r *ShopMongo) Find(params domain.RequestParams) (domain.Response, error) {
 		return response, err
 	}
 
-	var resultSlice []interface{} = make([]interface{}, len(results))
-	for i, d := range results {
-		resultSlice[i] = d
-	}
+	var resultSlice []domain.Shop = make([]domain.Shop, len(results))
+	// for i, d := range results {
+	// 	resultSlice[i] = d
+	// }
+	copy(resultSlice, results)
 
 	count,err := r.db.Collection(collectionName).CountDocuments(ctx, bson.M{})
 	if err != nil {
 		return response, err
 	}
 
-	response = domain.Response{
+	response = domain.Response[domain.Shop]{
 		Total: count,
 		Skip: int(params.Options.Skip),
 		Limit: int(params.Options.Limit),
@@ -62,15 +63,15 @@ func (r *ShopMongo) Find(params domain.RequestParams) (domain.Response, error) {
 	return response, nil
 }
 
-func (r *ShopMongo) GetAllShops(params domain.RequestParams) (domain.Response, error) {
+func (r *ShopMongo) GetAllShops(params domain.RequestParams) (domain.Response[domain.Shop], error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MongoQueryTimeout)
 	defer cancel()
 
 	var results []domain.Shop
-	var response domain.Response
+	var response domain.Response[domain.Shop]
 	pipe, err := CreatePipeline(params)
 	if err != nil {
-		return domain.Response{}, err
+		return domain.Response[domain.Shop]{}, err
 	}
 
 	cursor, err := r.db.Collection(collectionName).Aggregate(ctx, pipe) // Find(ctx, params.Filter, opts)
@@ -83,17 +84,18 @@ func (r *ShopMongo) GetAllShops(params domain.RequestParams) (domain.Response, e
 		return response, err
 	}
 
-	var resultSlice []interface{} = make([]interface{}, len(results))
-	for i, d := range results {
-		resultSlice[i] = d
-	}
+	var resultSlice []domain.Shop = make([]domain.Shop, len(results))
+	// for i, d := range results {
+	// 	resultSlice[i] = d
+	// }
+	copy(resultSlice, results)
 
 	count,err := r.db.Collection(collectionName).CountDocuments(ctx, bson.M{})
 	if err != nil {
 		return response, err
 	}
 
-	response = domain.Response{
+	response = domain.Response[domain.Shop]{
 		Total: count,
 		Skip: int(params.Options.Skip),
 		Limit: int(params.Options.Limit),

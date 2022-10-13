@@ -1,16 +1,17 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikalai2006/handmade/docs"
 	"github.com/mikalai2006/handmade/internal/config"
+	"github.com/mikalai2006/handmade/internal/middleware"
 	"github.com/mikalai2006/handmade/internal/service"
 	swaggerFiles "github.com/swaggo/files"     // swagger embed files
 	ginSwagger "github.com/swaggo/gin-swagger" // gin-swagger middleware
-
-	_ "github.com/mikalai2006/handmade/docs"
 )
 
 type Handler struct {
@@ -26,11 +27,12 @@ func NewHandler(services *service.Services, oauth config.OauthConfig) *Handler  
 }
 
 func (h *Handler) InitRoutes(cfg config.Config) *gin.Engine {
-	router := gin.Default()
+	router := gin.New()
 	router.Use(
 		gin.Recovery(),
 		gin.Logger(),
-		middlewareCors,
+		middleware.MiddlewareCors,
+		middleware.JSONAppErrorReporter(),
 	)
 	// add swagger route
 	docs.SwaggerInfo.Host = fmt.Sprintf("%s:%s", cfg.HTTP.Host, cfg.HTTP.Port)
@@ -40,48 +42,31 @@ func (h *Handler) InitRoutes(cfg config.Config) *gin.Engine {
 	if cfg.Environment != config.Prod {
 		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
+
+	// create session
 	// store := cookie.NewStore([]byte(os.Getenv("secret")))
 	// router.Use(sessions.Sessions("mysession", store))
 
 	auth := router.Group("/auth")
-	{
-		auth.POST("/sign-up", h.SignUp)
-		auth.POST("/sign-in", h.SignIn)
-		auth.POST("/logout", h.Logout)
-	}
-
-	oauth := router.Group("/oauth")
-	{
-		oauth.GET("/vk", h.OAuthVK)
-		oauth.GET("/google", h.OAuthGoogle)
-	}
-	router.GET("/me", h.Me)
-	router.GET("/googleme", h.MeGoogle)
-	router.GET("/ws", h.wsEndPoint)
+	h.registerAuth(auth)
 
 	api := router.Group("/api")
-	{
-		lists := api.Group("/lists")
-		{
-			lists.POST("/", h.CreateList)
-			lists.GET("/", h.GetAllLists)
-			lists.GET("/:id", h.GetListById)
-			lists.PUT("/:id", h.UpdateList)
-			lists.DELETE("/:id", h.DeleteList)
-			items := api.Group(":id/items")
-			{
-				items.POST("/", h.CreateItem)
-				items.GET("/", h.GetAllItems)
-				items.GET("/:item_id", h.GetItemById)
-				items.PUT("/:item_id", h.UpdateItem)
-				items.DELETE("/:item_id", h.DeleteItem)
-			}
-		}
-		shops := api.Group("/shops")
-		{
-			shops.GET("/",  h.Find)
-			shops.POST("/", h.userIdentity, h.CreateShop)
-		}
-	}
+	h.registerShop(api)
+	h.RegisterUser(api)
+
+	oauth := router.Group("/oauth")
+	h.registerVkOAuth(oauth)
+	h.registerGoogleOAuth(oauth)
+
+	router.NoRoute(func(c *gin.Context) {
+		c.AbortWithError(http.StatusNotFound, errors.New("page not found"))
+		// .SetMeta(gin.H{
+		// 	"code": http.StatusNotFound,
+		// 	"status": "error",
+		// 	"message": "hello",
+	 	// })
+
+	})
+
 	return router
 }
